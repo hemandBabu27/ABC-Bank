@@ -1,9 +1,9 @@
 /**
  * ABC Bank - Integrated Front-End Logic
- * Connects Frontend UI to FastAPI & Supabase Backend
+ * Connects GitHub Pages Frontend to FastAPI & Supabase Backend on Render
  */
 
-const API_BASE_URL = 'https://abc-bank-1.onrender.com/api';
+const API_BASE_URL = 'https://abc-bank-1.onrender.com/api'; // Live Render backend URL
 let currentUser = null;
 
 // --- 1. AUTHENTICATION & REGISTRATION TABS ---
@@ -53,7 +53,7 @@ function generate11DigitAccountNumber() {
     return acc;
 }
 
-// --- Registration Handler (Calls FastAPI /api/accounts/create) ---
+// --- Registration Form Handler (Calls FastAPI Supabase Endpoints) ---
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('regName').value.trim();
@@ -91,7 +91,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 
         if (!custRes.ok) throw new Error("Failed to register customer profile.");
 
-        // 2. Create Account linked to Customer
+        // 2. Create Account linked to Customer in Supabase via FastAPI
         const accRes = await fetch(`${API_BASE_URL}/accounts/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -189,32 +189,46 @@ function logout() {
     document.getElementById('loginForm').reset();
 }
 
-// --- 2. TRANSACTION & TRANSFER HANDLING ---
+// --- 2. TRANSACTION & FUND TRANSFER HANDLING ---
 const transferForm = document.getElementById('transferForm');
+const transAccountInput = document.getElementById('transAccount');
+const transAccError = document.getElementById('transAccError');
+
+function isValid11DigitAccount(account) {
+    return /^\d{11}$/.test(account);
+}
+
+transAccountInput.addEventListener('input', () => {
+    if (transAccountInput.value.length > 0 && !isValid11DigitAccount(transAccountInput.value)) {
+        transAccError.style.display = 'block';
+    } else {
+        transAccError.style.display = 'none';
+    }
+});
 
 transferForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const targetAcc = document.getElementById('transAccount').value.trim();
+    const targetAcc = transAccountInput.value.trim();
     const amount = parseFloat(document.getElementById('transAmount').value);
     const type = document.getElementById('transType').value;
 
-    const endpoint = type === 'Credit' ? '/transactions/deposit' : '/transactions/transfer';
-    
-    let payload = { account_number: targetAcc, amount: amount };
-    if (type === 'Debit' || type === 'Transfer') {
-        payload = {
-            sender_account_number: currentUser.account,
-            receiver_account_number: targetAcc,
-            amount: amount
-        };
+    if (!isValid11DigitAccount(targetAcc)) {
+        transAccError.style.display = 'block';
+        return;
+    }
+
+    if (targetAcc === currentUser.account) {
+        alert("Error: You cannot transfer funds to your own account.");
+        return;
     }
 
     try {
-        const res = await fetch(`${API_BASE_URL}${type === 'Credit' ? '/transactions/deposit' : '/transactions/transfer'}`, {
+        // Calls the FastAPI /api/transactions/transfer endpoint
+        const res = await fetch(`${API_BASE_URL}/transactions/transfer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(type === 'Credit' ? { account_number: currentUser.account, amount } : {
+            body: JSON.stringify({
                 sender_account_number: currentUser.account,
                 receiver_account_number: targetAcc,
                 amount: amount
@@ -226,7 +240,8 @@ transferForm.addEventListener('submit', async (e) => {
             throw new Error(errData.detail || "Transaction failed.");
         }
 
-        alert("Transaction completed successfully via Supabase backend!");
+        const data = await res.json();
+        alert(`Success! Transfer completed. New Balance: $${data.sender_balance.toFixed(2)}`);
         transferForm.reset();
 
     } catch (err) {
@@ -234,6 +249,7 @@ transferForm.addEventListener('submit', async (e) => {
     }
 });
 
+// Restore Session on Load
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = sessionStorage.getItem('abc_user');
     if (savedUser) {
