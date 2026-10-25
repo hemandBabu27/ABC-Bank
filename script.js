@@ -3,7 +3,7 @@
  * Connects Frontend UI to FastAPI & Supabase Backend
  */
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_BASE_URL = 'https://abc-bank-1.onrender.com/api';
 let currentUser = null;
 
 // --- 1. AUTHENTICATION & REGISTRATION TABS ---
