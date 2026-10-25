@@ -3,231 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ABC Bank - Smart AI Core</title>
-    <link rel="stylesheet" href="styles.css">
-    
+    <title>ABC Bank - Smart AI Core System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --bg-light: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --danger: #dc2626;
+            --success: #16a34a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg-light); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* Login Screen */
+        #loginScreen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 1.5rem;
+        }
+        .auth-container {
+            background: var(--card-bg);
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid var(--border);
+        }
+        .auth-tabs { display: flex; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); }
+        .auth-tab { flex: 1; text-align: center; padding: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+        .auth-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        /* Dashboard App Screen */
+        #appScreen { display: none; flex: 1; }
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 1.25rem; font-weight: 700; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+        .badge { background: var(--accent); padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+        .btn-logout { background: var(--danger); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: 600; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+        }
+        .card.full-width { grid-column: 1 / -1; }
+        .card h2 { font-size: 1.1rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Forms & Inputs */
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.35rem; }
+        .form-control { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; }
+        .form-control:focus { outline: none; border-color: var(--accent); }
+        .btn-primary { background: var(--accent); color: white; border: none; width: 100%; padding: 0.75rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .btn-primary:hover { opacity: 0.9; }
+        
+        /* Tables */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; text-align: left; font-size: 0.9rem; }
+        th, td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+        th { background: #f1f5f9; font-weight: 600; color: var(--text-muted); }
+
+        /* Alerts & Badges */
+        .alert { padding: 0.75rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; display: none; }
+        .alert-error { background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
+        .alert-success { background: #dcfce7; color: var(--success); border: 1px solid #86efac; }
+        .risk-badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .risk-low { background: #dcfce7; color: var(--success); }
+        .risk-high { background: #fee2e2; color: var(--danger); }
+    </style>
 </head>
 <body>
 
     <!-- AUTHENTICATION SCREEN -->
-    <div id="loginScreen" class="auth-wrapper">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2>ABC Bank</h2>
-                <p>Digital Core & Fraud Prevention Portal</p>
-            </div>
-
-            <!-- TOGGLE LOGIN / REGISTER -->
+    <div id="loginScreen">
+        <div class="auth-container">
+            <h2 style="text-align: center; margin-bottom: 1.5rem;">ABC Bank Portal</h2>
             <div class="auth-tabs">
-                <button type="button" id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">Log In</button>
-                <button type="button" id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">Create Account</button>
+                <div id="tabLogin" class="auth-tab active" onclick="switchAuthTab('login')">Sign In</div>
+                <div id="tabRegister" class="auth-tab" onclick="switchAuthTab('register')">Register Account</div>
             </div>
 
-            <!-- LOGIN FORM -->
+            <!-- Login Form -->
             <form id="loginForm">
+                <div class="alert alert-error" id="loginAlert"></div>
                 <div class="form-group">
-                    <label for="loginRole">Select Access Role</label>
-                    <select id="loginRole" onchange="toggleRoleFields()">
-                        <option value="Customer">Customer Portal</option>
+                    <label>Role</label>
+                    <select id="loginRole" class="form-control" onchange="toggleRoleFields()">
+                        <option value="Customer">Customer</option>
                         <option value="Admin">System Administrator</option>
                     </select>
                 </div>
-
                 <div class="form-group">
-                    <label for="loginAccount" id="accountLabel">11-Digit Account Number</label>
-                    <input type="text" id="loginAccount" placeholder="e.g., 10023456789" required>
+                    <label id="accountLabel">11-Digit Account Number</label>
+                    <input type="text" id="loginAccount" class="form-control" placeholder="e.g., 1002994946" required>
                 </div>
-
                 <div class="form-group">
-                    <label for="loginPin">4-Digit PIN / Password</label>
-                    <input type="password" id="loginPin" placeholder="••••" required>
+                    <label>Security PIN</label>
+                    <input type="password" id="loginPin" class="form-control" placeholder="4-digit PIN" maxlength="4" required>
                 </div>
-
-                <div id="loginAlert" class="alert alert-danger" style="display:none;"></div>
-
-                <button type="submit" class="btn-primary">Authenticate & Log In</button>
+                <button type="submit" class="btn-primary">Secure Sign In</button>
             </form>
 
-            <!-- CREATE ACCOUNT FORM -->
+            <!-- Registration Form -->
             <form id="registerForm" style="display: none;">
+                <div class="alert alert-error" id="regAlert"></div>
+                <div class="alert alert-success" id="regSuccessNotice" style="display: none;"></div>
                 <div class="form-group">
-                    <label for="regName">Full Legal Name</label>
-                    <input type="text" id="regName" placeholder="e.g. John Doe" required>
+                    <label>Full Name</label>
+                    <input type="text" id="regName" class="form-control" placeholder="Hemand Babu" required>
                 </div>
-
                 <div class="form-group">
-                    <label for="regEmail">Email Address</label>
-                    <input type="email" id="regEmail" placeholder="john@example.com" required>
+                    <label>Email Address</label>
+                    <input type="email" id="regEmail" class="form-control" placeholder="user@example.com" required>
                 </div>
-
                 <div class="form-group">
-                    <label for="regType">Account Type</label>
-                    <select id="regType">
+                    <label>Account Type</label>
+                    <select id="regType" class="form-control">
                         <option value="Savings">Savings Account</option>
                         <option value="Checking">Checking Account</option>
                     </select>
                 </div>
-
                 <div class="form-group">
-                    <label for="regDeposit">Initial Deposit ($)</label>
-                    <input type="number" id="regDeposit" min="50" placeholder="Minimum $50" required>
+                    <label>Initial Deposit ($ min 50)</label>
+                    <input type="number" id="regDeposit" class="form-control" placeholder="500" min="50" required>
                 </div>
-
                 <div class="form-group">
-                    <label for="regPin">Set 4-Digit Security PIN</label>
-                    <input type="password" id="regPin" maxlength="4" placeholder="••••" required>
+                    <label>Create 4-Digit PIN</label>
+                    <input type="password" id="regPin" class="form-control" placeholder="••••" maxlength="4" required>
                 </div>
-
-                <div id="regSuccessNotice" class="account-created-box" style="display: none;"></div>
-                <div id="regAlert" class="alert alert-danger" style="display:none;"></div>
-
-                <button type="submit" class="btn-primary">Open New Account</button>
+                <button type="submit" class="btn-primary">Create Account Profile</button>
             </form>
-
-            <div class="auth-footer">
-                <small><strong>Demo Admin Login:</strong> ID: <code>AD2026</code> | PIN: <code>AD2026</code></small>
-            </div>
         </div>
     </div>
 
-    <!-- MAIN APP DASHBOARD -->
-    <div id="appScreen" class="app-wrapper" style="display: none;">
+    <!-- MAIN DASHBOARD SCREEN -->
+    <div id="appScreen">
         <header>
-            <div class="brand">
-                <h1>ABC Bank</h1>
-                <small>Smart AI Core System</small>
-            </div>
+            <h1>ABC Bank Core AI System</h1>
             <div class="user-info">
-                <p><strong id="userDisplayName">User</strong> (<span id="userRoleBadge">Customer</span>)</p>
-                <p><small>Branch: <strong>Main Branch (BR-101)</strong></small></p>
+                <span id="userDisplayName">User</span>
+                <span class="badge" id="userRoleBadge">Customer</span>
                 <button class="btn-logout" onclick="logout()">Log Out</button>
             </div>
         </header>
 
-        <main class="container">
-
-            <!-- CUSTOMER-ONLY: 11-DIGIT TRANSFER FORM -->
-            <section id="transferCard" class="card">
+        <div class="dashboard-grid">
+            <!-- Fund Transfer Card -->
+            <div class="card" id="transferCard">
                 <h2>Fund Transfer <span class="badge">Strict Validation</span></h2>
                 <form id="transferForm">
                     <div class="form-group">
-                        <label for="transAccount">Target Account Number (11 Digits)</label>
-                        <input type="text" id="transAccount" maxlength="11" placeholder="e.g., 10098765432" required>
-                        <span class="error-msg" id="transAccError">Target account must be exactly 11 digits.</span>
+                        <label>Target Account Number (11 Digits)</label>
+                        <input type="text" id="transAccount" class="form-control" placeholder="100XXXXXXXX" maxlength="11" required>
+                        <small id="transAccError" style="color: var(--danger); display: none; font-size: 0.75rem;">Must be a valid 11-digit account number.</small>
                     </div>
-
                     <div class="form-group">
-                        <label for="transAmount">Amount ($)</label>
-                        <input type="number" id="transAmount" placeholder="Enter amount" min="1" step="0.01" required>
+                        <label>Amount ($)</label>
+                        <input type="number" id="transAmount" class="form-control" placeholder="150.00" min="1" step="0.01" required>
                     </div>
-
                     <div class="form-group">
-                        <label for="transType">Transaction Type</label>
-                        <select id="transType">
+                        <label>Transaction Type</label>
+                        <select id="transType" class="form-control">
                             <option value="Debit">Debit / Transfer Out</option>
-                            <option value="Credit">Credit / Deposit</option>
+                            <option value="Credit">Deposit / Credit In</option>
                         </select>
                     </div>
-
                     <button type="submit" class="btn-primary">Execute Transaction</button>
                 </form>
-            </section>
+            </div>
 
-            <!-- ADMIN-ONLY: SYSTEM AUDIT & METRICS OVERVIEW -->
-            <section id="adminOverviewCard" class="card" style="display: none;">
-                <h2>Admin Control Panel <span class="badge">Read Only</span></h2>
-                <p class="subtitle">System oversight, account registry, and risk telemetry.</p>
-                <div class="admin-stats">
-                    <div class="stat-box">
-                        <small>Registered Accounts</small>
-                        <h3 id="statTotalAccounts">0</h3>
-                    </div>
-                    <div class="stat-box">
-                        <small>Total Ledger Volume</small>
-                        <h3 id="statTotalVolume">$0.00</h3>
-                    </div>
+            <!-- AI Fraud Detection Monitor Card -->
+            <div class="card">
+                <h2>AI Fraud Detection <span class="badge" style="background: var(--success);">Real-Time</span></h2>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Monitors behavior, payment velocity, and high-value anomalies.</p>
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 1rem;">
+                    <strong>Engine Status:</strong> Active. Monitoring transaction telemetry.
                 </div>
-                <div class="ai-box" style="margin-top: 1rem;">
-                    <strong>Security Notice:</strong> Administrators monitor transactions and flag fraud risks. Direct fund transfers are restricted for administrative roles.
-                </div>
-            </section>
-
-            <!-- REAL-TIME AI FRAUD DETECTION ENGINE -->
-            <section class="card">
-                <h2>AI Fraud Detection <span class="badge">Real-Time</span></h2>
-                <p class="subtitle">Monitors behavior, payment velocity, high-value anomalies, and account risk profiles.</p>
-                
-                <div id="fraudAlert" class="ai-box">
-                    <strong>Engine Status:</strong> Monitoring active. Awaiting real-time transaction telemetry...
-                </div>
-
-                <div class="meter-container">
-                    <label>Assessed Risk Score:</label>
-                    <div class="meter-bar">
-                        <div id="riskMeter" class="meter-fill" style="width: 0%; background-color: var(--accent-color);"></div>
-                    </div>
-                    <small id="riskScoreText">Score: 0 / 100 (Safe Level)</small>
-                </div>
-            </section>
-
-            <!-- INNOVATIVE FEATURE 1: FINANCIAL GOAL ENGINE -->
-            <section class="card">
-                <h2>Intelligent Goal Engine <span class="badge">AI Feature</span></h2>
                 <div class="form-group">
-                    <label for="goalName">Target Savings Goal</label>
-                    <input type="text" id="goalName" placeholder="e.g., Reserve Fund">
+                    <label>Assessed Risk Score</label>
+                    <div style="font-size: 1.25rem; font-weight: 700; color: var(--success);">Score: 12 / 100 (Safe Level)</div>
                 </div>
-                <div class="form-group" style="margin-top: 0.5rem;">
-                    <label for="goalTarget">Target Goal ($)</label>
-                    <input type="number" id="goalTarget" placeholder="10000">
-                </div>
-                <button class="btn-primary" style="margin-top: 0.5rem;" onclick="calculateGoal()">Generate Allocation Strategy</button>
-                
-                <div id="goalResult" class="ai-box" style="display: none; margin-top: 0.75rem;"></div>
-            </section>
+            </div>
 
-            <!-- INNOVATIVE FEATURE 2: PREDICTIVE CASH FLOW -->
-            <section class="card">
-                <h2>Predictive Cash-Flow <span class="badge">AI Feature</span></h2>
-                <p class="subtitle">30-Day Liquidity & Outflow Forecast engine.</p>
-                
-                <div class="ai-box" style="margin-top: 0.75rem;">
-                    <p><strong>Predicted Monthly Outflow:</strong> <span id="outflowVal">$1,420.00</span></p>
-                    <p><strong>Liquidity Forecast:</strong> <span style="color: #2e7d32; font-weight: bold;">Healthy</span></p>
-                    <small>Recommendation: Allocation threshold is optimal for high-yield savings goals.</small>
-                </div>
-            </section>
-
-            <!-- RECENT TRANSACTIONS TABLE -->
-            <section class="card full-width">
-                <div class="table-header">
+            <!-- Transaction Ledger & Behavioral History Table -->
+            <div class="card full-width">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2>Transaction Ledger & Behavioral History</h2>
-                    <button class="btn-secondary" onclick="clearLedger()">Clear Session History</button>
+                    <button class="btn-primary" style="width: auto; padding: 0.4rem 1rem; font-size: 0.85rem;" onclick="renderLedger()">Refresh Ledger</button>
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
                                 <th>Txn ID</th>
-                                <th>Target Account</th>
+                                <th>Account Number</th>
                                 <th>Type</th>
-                                <th>Amount</th>
+                                <th>Amount ($)</th>
                                 <th>Timestamp</th>
-                                <th>Fraud Risk Score</th>
+                                <th>Fraud Risk</th>
                             </tr>
                         </thead>
                         <tbody id="transactionTable">
-                            <!-- Transactions populated dynamically -->
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Please log in to view transactions.</td></tr>
                         </tbody>
                     </table>
                 </div>
-            </section>
-
-        </main>
+            </div>
+        </div>
     </div>
 
-<link rel="stylesheet" href="styles.css">
-<!-- at the bottom of body -->
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
