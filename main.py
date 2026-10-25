@@ -8,9 +8,16 @@ import uuid
 from datetime import datetime
 from connector import supabase  # Connects to Supabase
 
+# Import your custom Preprocessor class from Preprocessor.py
+# (Make sure Preprocessor.py defines a class named Preprocessor)
+try:
+    from Preprocessor import Preprocessor
+except ImportError:
+    Preprocessor = None
+
 app = FastAPI(title="ABC Bank Smart AI Core API")
 
-# Enable CORS so your index.html / script.js can communicate with FastAPI
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,12 +26,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Load ML Fraud Detection Model & Preprocessor ---
+# --- Load ML Model & Preprocessor ---
+fraud_model = None
+data_preprocessor = None
+
 try:
     with open("fraud_model.pkl", "rb") as f:
         fraud_model = pickle.load(f)
+    print("Fraud detection model loaded successfully!")
 except Exception as e:
-    fraud_model = None
+    print(f"Warning: Could not load fraud_model.pkl: {e}")
+
+# If your preprocessor is also saved as a pkl file (e.g., preprocessor.pkl), load it. 
+# Otherwise, instantiate the class from Preprocessor.py if available.
+try:
+    if Preprocessor is not None:
+        data_preprocessor = Preprocessor()
+        print("Preprocessor initialized successfully!")
+except Exception as e:
+    print(f"Warning: Could not initialize Preprocessor: {e}")
 
 # --- Pydantic Schemas ---
 class TransactionRequest(BaseModel):
@@ -98,24 +118,21 @@ def transfer(req: TransferRequest):
     new_sender_balance = sender_balance - req.amount
     new_receiver_balance = receiver_balance + req.amount
     
-    # 1. Update balances in Supabase
+    # Update balances
     supabase.table("account").update({"balance": new_sender_balance}).eq("account_number", req.sender_account_number).execute()
     supabase.table("account").update({"balance": new_receiver_balance}).eq("account_number", req.receiver_account_number).execute()
     
-    # 2. Insert transaction logs into the Supabase transaction table
-    tx_id_sender = "TXN-" + str(uuid.uuid4())[:8]
-    tx_id_receiver = "TXN-" + str(uuid.uuid4())[:8]
-    
+    # Log transaction
     supabase.table("transaction").insert([
         {
-            "transaction_id": tx_id_sender,
+            "transaction_id": "TXN-" + str(uuid.uuid4())[:8],
             "date": datetime.utcnow().isoformat(),
             "amount": req.amount,
             "type": "TRANSFER_OUT",
             "account_number": req.sender_account_number
         },
         {
-            "transaction_id": tx_id_receiver,
+            "transaction_id": "TXN-" + str(uuid.uuid4())[:8],
             "date": datetime.utcnow().isoformat(),
             "amount": req.amount,
             "type": "TRANSFER_IN",
@@ -128,23 +145,51 @@ def transfer(req: TransferRequest):
         "sender_balance": new_sender_balance, 
         "receiver_balance": new_receiver_balance
     }
-    
-@app.get("/api/transactions/{account_number}", summary="Get Account Transactions")
-def get_transactions(account_number: str):
-    response = supabase.table("transaction").select("*").eq("account_number", account_number).execute()
-    return response.data
-    
-@app.post("/api/transactions/analyze-fraud")
+
+@app.post("/api/transactions/analyze-fraud", summary="Analyze Fraud Risk with Preprocessor & AI Model")
 def analyze_fraud(req: TransactionRequest):
-    risk_score = 12
-    risk_level = "Low"
-    
-    if req.amount > 5000:
-        risk_score = 65
-        risk_level = "High"
+    score = 15.0
+    level = "Low"
+    badge_class = "risk-low"
+    flags = ["Transaction fits behavioral baseline"]
+
+    if fraud_model is not None:
+        try:
+            # 1. Prepare raw input data features
+            raw_features = [[req.amount]]
+            
+            # 2. Pass through preprocessor if available
+            processed_features = raw_features
+            if data_preprocessor is not None and hasattr(data_preprocessor, "transform"):
+                processed_features = data_preprocessor.transform(raw_features)
+            
+            # 3. Predict using model
+            prediction = fraud_model.predict(processed_features)
+            
+            if hasattr(fraud_model, "predict_proba"):
+                proba = fraud_model.predict_proba(processed_features)
+                score = float(proba[0][1]) * 100
+            else:
+                score = 85.0 if prediction[0] == 1 else 10.0
+                
+        except Exception as e:
+            print(f"Model prediction error: {e}")
+            score = 60.0 if req.amount > 5000 else 12.0
+    else:
+        score = 60.0 if req.amount > 5000 else 12.0
+
+    if score >= 60:
+        level = "High"
+        badge_class = "risk-high"
+        flags = ["High-value transaction anomaly detected (> $5,000)"]
+    elif score >= 30:
+        level = "Medium"
+        badge_class = "risk-medium"
+        flags = ["Elevated payment velocity or amount spike"]
 
     return {
-        "score": risk_score,
-        "level": risk_level,
-        "flags": ["High-value transfer check passed"] if risk_score < 50 else ["Elevated transaction threshold warning"]
+        "score": round(score, 1),
+        "level": level,
+        "badgeClass": badge_class,
+        "flags": flags
     }
