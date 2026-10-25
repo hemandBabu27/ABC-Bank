@@ -128,7 +128,12 @@ def transfer(req: TransferRequest):
         "sender_balance": new_sender_balance, 
         "receiver_balance": new_receiver_balance
     }
-
+    
+@app.get("/api/transactions/{account_number}", summary="Get Account Transactions")
+def get_transactions(account_number: str):
+    response = supabase.table("transaction").select("*").eq("account_number", account_number).execute()
+    return response.data
+    
 @app.post("/api/transactions/analyze-fraud")
 def analyze_fraud(req: TransactionRequest):
     risk_score = 12
