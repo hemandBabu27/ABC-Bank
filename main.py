@@ -98,8 +98,30 @@ def transfer(req: TransferRequest):
     new_sender_balance = sender_balance - req.amount
     new_receiver_balance = receiver_balance + req.amount
     
+    # 1. Update balances in Supabase
     supabase.table("account").update({"balance": new_sender_balance}).eq("account_number", req.sender_account_number).execute()
     supabase.table("account").update({"balance": new_receiver_balance}).eq("account_number", req.receiver_account_number).execute()
+    
+    # 2. Insert transaction logs into the Supabase transaction table
+    tx_id_sender = "TXN-" + str(uuid.uuid4())[:8]
+    tx_id_receiver = "TXN-" + str(uuid.uuid4())[:8]
+    
+    supabase.table("transaction").insert([
+        {
+            "transaction_id": tx_id_sender,
+            "date": datetime.utcnow().isoformat(),
+            "amount": req.amount,
+            "type": "TRANSFER_OUT",
+            "account_number": req.sender_account_number
+        },
+        {
+            "transaction_id": tx_id_receiver,
+            "date": datetime.utcnow().isoformat(),
+            "amount": req.amount,
+            "type": "TRANSFER_IN",
+            "account_number": req.receiver_account_number
+        }
+    ]).execute()
     
     return {
         "message": "Transfer successful", 
