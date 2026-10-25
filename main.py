@@ -6,12 +6,10 @@ from pydantic import BaseModel
 from typing import Optional
 import uuid
 from datetime import datetime
-from connector import supabase  # Connects to Supabase
 import numpy as np
-from datetime import datetime
+from connector import supabase  # Connects to Supabase
 
-# Import your custom Preprocessor class from Preprocessor.py
-# (Make sure Preprocessor.py defines a class named Preprocessor)
+# Import your custom Preprocessor class from Preprocessor.py if needed
 try:
     from Preprocessor import Preprocessor
 except ImportError:
@@ -39,8 +37,6 @@ try:
 except Exception as e:
     print(f"Warning: Could not load fraud_model.pkl: {e}")
 
-# If your preprocessor is also saved as a pkl file (e.g., preprocessor.pkl), load it.
-# Otherwise, instantiate the class from Preprocessor.py if available.
 try:
     if Preprocessor is not None:
         data_preprocessor = Preprocessor()
