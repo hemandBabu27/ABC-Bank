@@ -1,34 +1,41 @@
 /**
- * ABC Bank - Integrated Front-End Logic
- * Connects GitHub Pages Frontend to FastAPI & Supabase Backend on Render
+ * ABC Bank - Real-Life Core Engine
+ * Manages Rupee Balances, Admin Account Creation, and AI Risk Telemetry
  */
 
-const API_BASE_URL = 'https://abc-bank-1.onrender.com/api'; 
+// Local Storage for Accounts & Ledger
+let accounts = JSON.parse(localStorage.getItem('abc_accounts')) || [
+    {
+        accountNumber: '10011223344',
+        pin: '1234',
+        name: 'Demo Customer',
+        email: 'customer@abcbank.com',
+        balance: 25000.00,
+        type: 'Savings Account'
+    }
+];
+
+let transactions = JSON.parse(localStorage.getItem('abc_transactions')) || [
+    {
+        id: 'TXN-90481',
+        account: '10011223344',
+        type: 'Debit',
+        amount: 2500.00,
+        timestamp: '2026-09-28 10:15',
+        score: 12,
+        level: 'Low',
+        badgeClass: 'risk-low'
+    }
+];
+
 let currentUser = null;
 
-// --- AUTHENTICATION TABS & UTILS ---
-function switchAuthTab(mode) {
-    const loginForm = document.getElementById('loginForm');
-    const registerForm = document.getElementById('registerForm');
-    const tabLogin = document.getElementById('tabLogin');
-    const tabRegister = document.getElementById('tabRegister');
-    
-    document.getElementById('loginAlert').style.display = 'none';
-    document.getElementById('regAlert').style.display = 'none';
-
-    if (mode === 'login') {
-        loginForm.style.display = 'block';
-        registerForm.style.display = 'none';
-        tabLogin.classList.add('active');
-        tabRegister.classList.remove('active');
-    } else {
-        loginForm.style.display = 'none';
-        registerForm.style.display = 'block';
-        tabLogin.classList.remove('active');
-        tabRegister.classList.add('active');
-    }
+// Validate 11-digit account logic
+function isValid11DigitAccount(account) {
+    return /^\d{11}$/.test(account);
 }
 
+// Toggle inputs for Admin vs Customer
 function toggleRoleFields() {
     const role = document.getElementById('loginRole').value;
     const accountLabel = document.getElementById('accountLabel');
@@ -39,84 +46,12 @@ function toggleRoleFields() {
         loginAccount.placeholder = "e.g., AD2026";
     } else {
         accountLabel.innerText = "11-Digit Account Number";
-        loginAccount.placeholder = "e.g., 1002994946";
+        loginAccount.placeholder = "e.g., 10023456789";
     }
 }
 
-function generate11DigitAccountNumber() {
-    let acc = '100';
-    for (let i = 0; i < 8; i++) {
-        acc += Math.floor(Math.random() * 10);
-    }
-    return acc;
-}
-
-// --- REGISTRATION HANDLER ---
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('regName').value.trim();
-    const email = document.getElementById('regEmail').value.trim();
-    const type = document.getElementById('regType').value;
-    const deposit = parseFloat(document.getElementById('regDeposit').value);
-    const pin = document.getElementById('regPin').value.trim();
-
-    const regAlert = document.getElementById('regAlert');
-    const regSuccessNotice = document.getElementById('regSuccessNotice');
-    regAlert.style.display = 'none';
-
-    if (pin.length !== 4 || isNaN(pin)) {
-        regAlert.innerText = "PIN must be exactly 4 digits.";
-        regAlert.style.display = 'block';
-        return;
-    }
-
-    if (deposit < 50) {
-        regAlert.innerText = "Minimum initial deposit is $50.";
-        regAlert.style.display = 'block';
-        return;
-    }
-
-    const newAccNum = generate11DigitAccountNumber();
-    const customerId = 'CUST-' + Math.floor(1000 + Math.random() * 9000);
-
-    try {
-        const custRes = await fetch(`${API_BASE_URL}/customers/create`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customer_id: customerId, name: name, email: email })
-        });
-
-        if (!custRes.ok) throw new Error("Failed to register customer profile.");
-
-        const accRes = await fetch(`${API_BASE_URL}/accounts/create`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                account_number: newAccNum,
-                initial_deposit: deposit,
-                account_type: type,
-                customer_id: customerId
-            })
-        });
-
-        if (!accRes.ok) throw new Error("Failed to initialize bank account.");
-
-        regSuccessNotice.innerHTML = `
-            <strong>Account Created Successfully!</strong><br>
-            Your 11-Digit Account Number is: <code>${newAccNum}</code><br>
-            <small>Use this Account Number to sign in.</small>
-        `;
-        regSuccessNotice.style.display = 'block';
-        document.getElementById('registerForm').reset();
-
-    } catch (err) {
-        regAlert.innerText = err.message || "Server connection error.";
-        regAlert.style.display = 'block';
-    }
-});
-
-// --- LOGIN HANDLER ---
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+// Login Handler
+document.getElementById('loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const role = document.getElementById('loginRole').value;
     const inputAcc = document.getElementById('loginAccount').value.trim();
@@ -125,31 +60,23 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
     loginAlert.style.display = 'none';
 
+    // Admin Authentication
     if (role === 'Admin') {
         if (inputAcc === 'AD2026' && inputPin === 'AD2026') {
             authenticateUser({ name: 'System Admin', account: 'AD2026', role: 'Admin' });
         } else {
-            loginAlert.innerText = "Invalid Admin Credentials.";
+            loginAlert.innerText = "Invalid Admin Credentials. (Use ID: AD2026, PIN: AD2026)";
             loginAlert.style.display = 'block';
         }
         return;
     }
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/accounts/${inputAcc}`);
-        if (!res.ok) throw new Error("Account not found.");
-        
-        const accountData = await res.json();
-        
-        authenticateUser({ 
-            name: accountData.customer.name, 
-            account: accountData.account_number, 
-            balance: accountData.balance,
-            role: 'Customer' 
-        });
-
-    } catch (err) {
-        loginAlert.innerText = "Invalid 11-Digit Account Number or server error.";
+    // Customer Authentication
+    const foundAcc = accounts.find(a => a.accountNumber === inputAcc && a.pin === inputPin);
+    if (foundAcc) {
+        authenticateUser({ ...foundAcc, role: 'Customer' });
+    } else {
+        loginAlert.innerText = "Invalid 11-Digit Account Number or Security PIN.";
         loginAlert.style.display = 'block';
     }
 });
@@ -165,12 +92,29 @@ function authenticateUser(userObj) {
     document.getElementById('userRoleBadge').innerText = currentUser.role;
 
     const transferCard = document.getElementById('transferCard');
+    const adminPanelCard = document.getElementById('adminPanelCard');
+    const customerAccountCard = document.getElementById('customerAccountCard');
+
     if (currentUser.role === 'Admin') {
-        transferCard.style.display = 'none';
+        transferCard.style.display = 'none'; // Admin cannot issue transactions
+        adminPanelCard.style.display = 'block'; // Show Account Creation form
+        customerAccountCard.style.display = 'none';
+        updateAdminStats();
     } else {
         transferCard.style.display = 'block';
-        renderLedger();
+        adminPanelCard.style.display = 'none';
+        customerAccountCard.style.display = 'block';
+        updateCustomerUI();
     }
+
+    renderLedger();
+}
+
+function updateCustomerUI() {
+    const acc = accounts.find(a => a.accountNumber === currentUser.accountNumber) || currentUser;
+    document.getElementById('displayAccNumber').innerText = acc.accountNumber;
+    document.getElementById('displayAccType').innerText = acc.type;
+    document.getElementById('displayAccBalance').innerText = `₹${acc.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
 function logout() {
@@ -181,14 +125,106 @@ function logout() {
     document.getElementById('loginForm').reset();
 }
 
-// --- FUND TRANSFER HANDLER ---
+// --- ADMIN CREATES ACCOUNT FOR USERS ---
+function generate11DigitAccountNumber() {
+    let acc = '100';
+    for (let i = 0; i < 8; i++) {
+        acc += Math.floor(Math.random() * 10);
+    }
+    return acc;
+}
+
+document.getElementById('createAccountForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const type = document.getElementById('regType').value;
+    const deposit = parseFloat(document.getElementById('regDeposit').value);
+    const pin = document.getElementById('regPin').value.trim();
+    const regNotice = document.getElementById('regSuccessNotice');
+
+    if (pin.length !== 4 || isNaN(pin)) {
+        alert("PIN must be a 4-digit number.");
+        return;
+    }
+
+    const newAccNum = generate11DigitAccountNumber();
+
+    const newAccount = {
+        accountNumber: newAccNum,
+        pin: pin,
+        name: name,
+        email: email,
+        balance: deposit,
+        type: type
+    };
+
+    accounts.push(newAccount);
+    localStorage.setItem('abc_accounts', JSON.stringify(accounts));
+
+    regNotice.innerHTML = `
+        <strong>New Customer Account Registered!</strong><br>
+        • Account Number: <code>${newAccNum}</code><br>
+        • Customer Name: <strong>${name}</strong><br>
+        • Initial Deposit: <strong>₹${deposit.toLocaleString('en-IN')}</strong><br>
+        <small>Account details saved to central database.</small>
+    `;
+    regNotice.style.display = 'block';
+
+    updateAdminStats();
+    document.getElementById('createAccountForm').reset();
+});
+
+function updateAdminStats() {
+    document.getElementById('statTotalAccounts').innerText = accounts.length;
+    const totalVolume = transactions.reduce((sum, t) => sum + t.amount, 0);
+    document.getElementById('statTotalVolume').innerText = `₹${totalVolume.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+}
+
+// --- AI FRAUD ENGINE ---
+function analyzeFraudRisk(account, amount) {
+    let score = 0;
+    let flags = [];
+
+    if (amount > 500000) {
+        score += 50;
+        flags.push("High-value transaction anomaly (> ₹5,00,000)");
+    } else if (amount > 100000) {
+        score += 25;
+        flags.push("Elevated transaction amount (> ₹1,00,000)");
+    }
+
+    if (account.endsWith("0000") || account.startsWith("99")) {
+        score += 30;
+        flags.push("Suspicious target account routing profile");
+    }
+
+    if (Math.random() < 0.25) {
+        score += 20;
+        flags.push("Unusual activity time/frequency spike");
+    }
+
+    let level = "Low";
+    let color = "var(--accent-color)";
+    let badgeClass = "risk-low";
+
+    if (score >= 60) {
+        level = "High";
+        color = "var(--danger-color)";
+        badgeClass = "risk-high";
+    } else if (score >= 30) {
+        level = "Medium";
+        color = "var(--warning-color)";
+        badgeClass = "risk-medium";
+    }
+
+    return { score, level, flags, color, badgeClass };
+}
+
+// --- CUSTOMER TRANSFER MANAGEMENT ---
 const transferForm = document.getElementById('transferForm');
 const transAccountInput = document.getElementById('transAccount');
 const transAccError = document.getElementById('transAccError');
-
-function isValid11DigitAccount(account) {
-    return /^\d{11}$/.test(account);
-}
 
 transAccountInput.addEventListener('input', () => {
     if (transAccountInput.value.length > 0 && !isValid11DigitAccount(transAccountInput.value)) {
@@ -198,91 +234,123 @@ transAccountInput.addEventListener('input', () => {
     }
 });
 
-transferForm.addEventListener('submit', async (e) => {
+transferForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
     const targetAcc = transAccountInput.value.trim();
     const amount = parseFloat(document.getElementById('transAmount').value);
+    const type = document.getElementById('transType').value;
 
     if (!isValid11DigitAccount(targetAcc)) {
         transAccError.style.display = 'block';
         return;
     }
 
-    if (targetAcc === currentUser.account) {
-        alert("Error: You cannot transfer funds to your own account.");
+    // Check balance for debit transactions
+    const customerAcc = accounts.find(a => a.accountNumber === currentUser.accountNumber);
+    if (type === 'Debit' && customerAcc && customerAcc.balance < amount) {
+        alert("Insufficient account balance to complete transfer.");
         return;
     }
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/transactions/transfer`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                sender_account_number: currentUser.account,
-                receiver_account_number: targetAcc,
-                amount: amount
-            })
-        });
+    // Calculate Fraud Assessment
+    const analysis = analyzeFraudRisk(targetAcc, amount);
 
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || "Transaction failed.");
-        }
+    const fraudAlert = document.getElementById('fraudAlert');
+    const riskMeter = document.getElementById('riskMeter');
+    const riskScoreText = document.getElementById('riskScoreText');
 
-        const data = await res.json();
-        alert(`Success! Transfer completed. New Balance: $${data.sender_balance.toFixed(2)}`);
-        transferForm.reset();
-        renderLedger(); // Refresh transaction history table
+    riskMeter.style.width = analysis.score + '%';
+    riskMeter.style.backgroundColor = analysis.color;
+    riskScoreText.innerText = `Score: ${analysis.score} / 100 (${analysis.level} Risk)`;
 
-    } catch (err) {
-        alert("Error: " + err.message);
+    if (analysis.flags.length > 0) {
+        fraudAlert.innerHTML = `<strong>Status [${analysis.level} Risk Alert]:</strong><br>` + 
+            analysis.flags.map(f => `• ${f}`).join('<br>');
+    } else {
+        fraudAlert.innerHTML = `<strong>Status [Safe]:</strong> Transaction fits customer's historical behavioral baseline.`;
     }
+
+    // Update Balance
+    if (customerAcc) {
+        if (type === 'Debit') {
+            customerAcc.balance -= amount;
+        } else {
+            customerAcc.balance += amount;
+        }
+        localStorage.setItem('abc_accounts', JSON.stringify(accounts));
+        updateCustomerUI();
+    }
+
+    // Append to Transaction History
+    const newTxn = {
+        id: 'TXN-' + Math.floor(10000 + Math.random() * 90000),
+        account: targetAcc,
+        type: type,
+        amount: amount,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        score: analysis.score,
+        level: analysis.level,
+        badgeClass: analysis.badgeClass
+    };
+
+    transactions.unshift(newTxn);
+    localStorage.setItem('abc_transactions', JSON.stringify(transactions));
+    renderLedger();
+
+    transferForm.reset();
 });
 
-// --- RENDER TRANSACTION LEDGER ---
-async function renderLedger() {
-    if (!currentUser || currentUser.role === 'Admin') return;
-
+function renderLedger() {
     const tableBody = document.getElementById('transactionTable');
-    if (!tableBody) return;
+    tableBody.innerHTML = '';
 
-    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 1rem;">Loading ledger history...</td></tr>';
+    transactions.forEach(txn => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${txn.id}</td>
+            <td>${txn.account}</td>
+            <td>${txn.type}</td>
+            <td>₹${txn.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+            <td>${txn.timestamp}</td>
+            <td><span class="risk-badge ${txn.badgeClass}">${txn.level} (${txn.score})</span></td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
 
-    try {
-        const res = await fetch(`${API_BASE_URL}/transactions/${currentUser.account}`);
-        if (!res.ok) throw new Error("Could not load transaction history.");
-
-        const transactions = await res.json();
-        tableBody.innerHTML = '';
-
-        if (!transactions || transactions.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 1rem;">No transactions recorded yet.</td></tr>';
-            return;
-        }
-
-        transactions.forEach(txn => {
-            const row = document.createElement('tr');
-            const formattedDate = txn.date ? txn.date.replace('T', ' ').substring(0, 16) : 'N/A';
-            const amountVal = parseFloat(txn.amount || 0).toFixed(2);
-            
-            row.innerHTML = `
-                <td><code>${txn.transaction_id || 'TXN-0000'}</code></td>
-                <td>${txn.account_number}</td>
-                <td><span class="badge">${txn.type}</span></td>
-                <td>$${amountVal}</td>
-                <td><small>${formattedDate}</small></td>
-                <td><span class="risk-badge risk-low">Low (12)</span></td>
-            `;
-            tableBody.appendChild(row);
-        });
-
-    } catch (err) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red; padding: 1rem;">Error loading ledger.</td></tr>`;
+function clearLedger() {
+    if (confirm("Clear local ledger logs?")) {
+        transactions = [];
+        localStorage.setItem('abc_transactions', JSON.stringify(transactions));
+        renderLedger();
     }
 }
 
-// Restore Session on Load
+// --- FINANCIAL GOAL PLANNER ---
+function calculateGoal() {
+    const name = document.getElementById('goalName').value || 'Emergency Reserve';
+    const target = parseFloat(document.getElementById('goalTarget').value);
+    const resultBox = document.getElementById('goalResult');
+
+    if (!target || target <= 0) {
+        alert('Please enter a valid target amount.');
+        return;
+    }
+
+    const monthly = (target / 12).toFixed(2);
+    const weekly = (target / 52).toFixed(2);
+
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = `
+        <strong>AI Deposit Strategy for "${name}":</strong><br>
+        To accumulate ₹${target.toLocaleString('en-IN')} over 12 months:<br>
+        • Deposit <strong>₹${parseFloat(monthly).toLocaleString('en-IN')}/month</strong> or <strong>₹${parseFloat(weekly).toLocaleString('en-IN')}/week</strong>.<br>
+        <em>Automated mandate strategy ready.</em>
+    `;
+}
+
+// Restore active session
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = sessionStorage.getItem('abc_user');
     if (savedUser) {
