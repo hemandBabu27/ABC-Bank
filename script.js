@@ -3,20 +3,18 @@
  * Connects GitHub Pages Frontend to FastAPI & Supabase Backend on Render
  */
 
-const API_BASE_URL = 'https://abc-bank-1.onrender.com/api'; // Live Render backend URL
+const API_BASE_URL = 'https://abc-bank-1.onrender.com/api'; 
 let currentUser = null;
 
-// --- 1. AUTHENTICATION & REGISTRATION TABS ---
+// --- AUTHENTICATION TABS & UTILS ---
 function switchAuthTab(mode) {
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     const tabLogin = document.getElementById('tabLogin');
     const tabRegister = document.getElementById('tabRegister');
-    const loginAlert = document.getElementById('loginAlert');
-    const regAlert = document.getElementById('regAlert');
-
-    loginAlert.style.display = 'none';
-    regAlert.style.display = 'none';
+    
+    document.getElementById('loginAlert').style.display = 'none';
+    document.getElementById('regAlert').style.display = 'none';
 
     if (mode === 'login') {
         loginForm.style.display = 'block';
@@ -30,42 +28,6 @@ function switchAuthTab(mode) {
         tabRegister.classList.add('active');
     }
 }
-// --- Fetch and Render Transaction Ledger ---
-async function renderLedger() {
-    if (!currentUser || currentUser.role === 'Admin') return;
-
-    const tableBody = document.getElementById('transactionTable');
-    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Loading ledger history...</td></tr>';
-
-    try {
-        const res = await fetch(`${API_BASE_URL}/transactions/${currentUser.account}`);
-        if (!res.ok) throw new Error("Failed to fetch transactions.");
-
-        const transactions = await res.json();
-        tableBody.innerHTML = '';
-
-        if (transactions.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No transaction history found.</td></tr>';
-            return;
-        }
-
-        transactions.forEach(txn => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${txn.transaction_id || 'TXN-0000'}</td>
-                <td>${txn.account_number}</td>
-                <td>${txn.type}</td>
-                <td>$${parseFloat(txn.amount).toFixed(2)}</td>
-                <td>${txn.date ? txn.date.replace('T', ' ').substring(0, 16) : 'N/A'}</td>
-                <td><span class="risk-badge risk-low">Low (12)</span></td>
-            `;
-            tableBody.appendChild(row);
-        });
-
-    } catch (err) {
-        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Error loading history.</td></tr>`;
-    }
-}
 
 function toggleRoleFields() {
     const role = document.getElementById('loginRole').value;
@@ -77,7 +39,7 @@ function toggleRoleFields() {
         loginAccount.placeholder = "e.g., AD2026";
     } else {
         accountLabel.innerText = "11-Digit Account Number";
-        loginAccount.placeholder = "e.g., 10023456789";
+        loginAccount.placeholder = "e.g., 1002994946";
     }
 }
 
@@ -89,7 +51,7 @@ function generate11DigitAccountNumber() {
     return acc;
 }
 
-// --- Registration Form Handler (Calls FastAPI Supabase Endpoints) ---
+// --- REGISTRATION HANDLER ---
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('regName').value.trim();
@@ -118,7 +80,6 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const customerId = 'CUST-' + Math.floor(1000 + Math.random() * 9000);
 
     try {
-        // 1. Create Customer in Supabase via FastAPI
         const custRes = await fetch(`${API_BASE_URL}/customers/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -127,7 +88,6 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 
         if (!custRes.ok) throw new Error("Failed to register customer profile.");
 
-        // 2. Create Account linked to Customer in Supabase via FastAPI
         const accRes = await fetch(`${API_BASE_URL}/accounts/create`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -144,7 +104,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         regSuccessNotice.innerHTML = `
             <strong>Account Created Successfully!</strong><br>
             Your 11-Digit Account Number is: <code>${newAccNum}</code><br>
-            <small>Use this Account Number to log in.</small>
+            <small>Use this Account Number to sign in.</small>
         `;
         regSuccessNotice.style.display = 'block';
         document.getElementById('registerForm').reset();
@@ -155,7 +115,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     }
 });
 
-// --- Login Handler (Verifies against FastAPI /api/accounts/{account_number}) ---
+// --- LOGIN HANDLER ---
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const role = document.getElementById('loginRole').value;
@@ -181,7 +141,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         
         const accountData = await res.json();
         
-        // Authenticate Customer
         authenticateUser({ 
             name: accountData.customer.name, 
             account: accountData.account_number, 
@@ -206,14 +165,11 @@ function authenticateUser(userObj) {
     document.getElementById('userRoleBadge').innerText = currentUser.role;
 
     const transferCard = document.getElementById('transferCard');
-    const adminOverviewCard = document.getElementById('adminOverviewCard');
-
     if (currentUser.role === 'Admin') {
         transferCard.style.display = 'none';
-        adminOverviewCard.style.display = 'block';
     } else {
         transferCard.style.display = 'block';
-        adminOverviewCard.style.display = 'none';
+        renderLedger();
     }
 }
 
@@ -225,7 +181,7 @@ function logout() {
     document.getElementById('loginForm').reset();
 }
 
-// --- 2. TRANSACTION & FUND TRANSFER HANDLING ---
+// --- FUND TRANSFER HANDLER ---
 const transferForm = document.getElementById('transferForm');
 const transAccountInput = document.getElementById('transAccount');
 const transAccError = document.getElementById('transAccError');
@@ -247,7 +203,6 @@ transferForm.addEventListener('submit', async (e) => {
 
     const targetAcc = transAccountInput.value.trim();
     const amount = parseFloat(document.getElementById('transAmount').value);
-    const type = document.getElementById('transType').value;
 
     if (!isValid11DigitAccount(targetAcc)) {
         transAccError.style.display = 'block';
@@ -260,7 +215,6 @@ transferForm.addEventListener('submit', async (e) => {
     }
 
     try {
-        // Calls the FastAPI /api/transactions/transfer endpoint
         const res = await fetch(`${API_BASE_URL}/transactions/transfer`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -279,11 +233,54 @@ transferForm.addEventListener('submit', async (e) => {
         const data = await res.json();
         alert(`Success! Transfer completed. New Balance: $${data.sender_balance.toFixed(2)}`);
         transferForm.reset();
+        renderLedger(); // Refresh transaction history table
 
     } catch (err) {
         alert("Error: " + err.message);
     }
 });
+
+// --- RENDER TRANSACTION LEDGER ---
+async function renderLedger() {
+    if (!currentUser || currentUser.role === 'Admin') return;
+
+    const tableBody = document.getElementById('transactionTable');
+    if (!tableBody) return;
+
+    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 1rem;">Loading ledger history...</td></tr>';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/transactions/${currentUser.account}`);
+        if (!res.ok) throw new Error("Could not load transaction history.");
+
+        const transactions = await res.json();
+        tableBody.innerHTML = '';
+
+        if (!transactions || transactions.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 1rem;">No transactions recorded yet.</td></tr>';
+            return;
+        }
+
+        transactions.forEach(txn => {
+            const row = document.createElement('tr');
+            const formattedDate = txn.date ? txn.date.replace('T', ' ').substring(0, 16) : 'N/A';
+            const amountVal = parseFloat(txn.amount || 0).toFixed(2);
+            
+            row.innerHTML = `
+                <td><code>${txn.transaction_id || 'TXN-0000'}</code></td>
+                <td>${txn.account_number}</td>
+                <td><span class="badge">${txn.type}</span></td>
+                <td>$${amountVal}</td>
+                <td><small>${formattedDate}</small></td>
+                <td><span class="risk-badge risk-low">Low (12)</span></td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+    } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red; padding: 1rem;">Error loading ledger.</td></tr>`;
+    }
+}
 
 // Restore Session on Load
 window.addEventListener('DOMContentLoaded', () => {
