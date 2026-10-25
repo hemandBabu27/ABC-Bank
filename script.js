@@ -30,6 +30,42 @@ function switchAuthTab(mode) {
         tabRegister.classList.add('active');
     }
 }
+// --- Fetch and Render Transaction Ledger ---
+async function renderLedger() {
+    if (!currentUser || currentUser.role === 'Admin') return;
+
+    const tableBody = document.getElementById('transactionTable');
+    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Loading ledger history...</td></tr>';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/transactions/${currentUser.account}`);
+        if (!res.ok) throw new Error("Failed to fetch transactions.");
+
+        const transactions = await res.json();
+        tableBody.innerHTML = '';
+
+        if (transactions.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No transaction history found.</td></tr>';
+            return;
+        }
+
+        transactions.forEach(txn => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${txn.transaction_id || 'TXN-0000'}</td>
+                <td>${txn.account_number}</td>
+                <td>${txn.type}</td>
+                <td>$${parseFloat(txn.amount).toFixed(2)}</td>
+                <td>${txn.date ? txn.date.replace('T', ' ').substring(0, 16) : 'N/A'}</td>
+                <td><span class="risk-badge risk-low">Low (12)</span></td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+    } catch (err) {
+        tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red;">Error loading history.</td></tr>`;
+    }
+}
 
 function toggleRoleFields() {
     const role = document.getElementById('loginRole').value;
