@@ -87,7 +87,12 @@ def create_account(data: AccountCreate):
         "customer_id": data.customer_id
     }).execute()
     return {"message": "Account created successfully", "account_number": data.account_number}
-
+    
+@app.get("/api/transactions/{account_number}", summary="Get Account Transactions")
+def get_transactions(account_number: str):
+    response = supabase.table("transaction").select("*").eq("account_number", account_number).execute()
+    return response.data
+    
 @app.get("/api/accounts/{account_number}")
 def get_account(account_number: str):
     account = supabase.table("account").select("*, customer(*)").eq("account_number", account_number).execute()
