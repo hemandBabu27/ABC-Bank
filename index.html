@@ -69,6 +69,7 @@
                     <div>
                         <small>Account Number (11-Digits)</small>
                         <h3 id="displayAccNumber">10000000000</h3>
+                        <span id="displayCategory" class="badge-tag">Common</span>
                         <span id="displayAccType" class="badge">Savings Account</span>
                     </div>
                     <div class="balance-box">
@@ -76,6 +77,28 @@
                         <h2 id="displayAccBalance">₹0.00</h2>
                     </div>
                 </div>
+            </section>
+
+            <!-- CUSTOMER-ONLY: ATM SELF-SERVICE TERMINAL (NO TARGET ACC REQUIRED) -->
+            <section id="atmCard" class="card">
+                <h2>ATM Express Terminal <span class="badge">Self-Service</span></h2>
+                <p class="subtitle">Quick cardless self withdrawal or deposit directly to your linked account.</p>
+                <form id="atmForm">
+                    <div class="form-group">
+                        <label for="atmAction">ATM Operation</label>
+                        <select id="atmAction">
+                            <option value="Self Withdraw">Self Cash Withdrawal</option>
+                            <option value="Self Deposit">Self Cash Deposit</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="atmAmount">Amount (₹)</label>
+                        <input type="number" id="atmAmount" placeholder="Enter amount in ₹" min="100" step="100" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="background-color: #2e7d32;">Process ATM Transaction</button>
+                </form>
             </section>
 
             <!-- CUSTOMER-ONLY: 11-DIGIT FUND TRANSFER FORM -->
@@ -111,25 +134,33 @@
                 <p class="subtitle">Register new bank accounts and inspect system-wide ledger volumes.</p>
 
                 <div class="admin-grid">
-                    <!-- ACCOUNT CREATION FORM -->
+                    <!-- ACCOUNT CREATION FORM WITH COMMON/BUSINESS CATEGORIES -->
                     <div class="admin-section">
                         <h3>Create Customer Account</h3>
                         <form id="createAccountForm">
                             <div class="form-group">
-                                <label for="regName">Full Legal Name</label>
-                                <input type="text" id="regName" placeholder="e.g. Ramesh Kumar" required>
+                                <label for="regName">Full Legal / Entity Name</label>
+                                <input type="text" id="regName" placeholder="e.g. Ramesh Kumar or ACME Corp" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="regCategory">Account Category</label>
+                                <select id="regCategory">
+                                    <option value="Common">Common / Personal Account</option>
+                                    <option value="Business">Business / Corporate Account</option>
+                                </select>
                             </div>
 
                             <div class="form-group">
                                 <label for="regEmail">Email Address</label>
-                                <input type="email" id="regEmail" placeholder="ramesh@example.com" required>
+                                <input type="email" id="regEmail" placeholder="contact@example.com" required>
                             </div>
 
                             <div class="form-group">
                                 <label for="regType">Account Type</label>
                                 <select id="regType">
-                                    <option value="Savings">Savings Account</option>
-                                    <option value="Current">Current Account</option>
+                                    <option value="Savings Account">Savings Account</option>
+                                    <option value="Current Account">Current Account</option>
                                     <option value="Fixed Deposit">Fixed Deposit (FD)</option>
                                 </select>
                             </div>
@@ -204,7 +235,7 @@
             </section>
 
             <!-- INNOVATIVE FEATURE 2: PREDICTIVE CASH FLOW -->
-            <section class="card">
+            <section class="card full-width">
                 <h2>Predictive Liquidity Engine <span class="badge">AI Feature</span></h2>
                 <p class="subtitle">30-Day Cash-Flow Forecast engine.</p>
                 
@@ -226,7 +257,7 @@
                         <thead>
                             <tr>
                                 <th>Txn Ref ID</th>
-                                <th>Target Account</th>
+                                <th>Target / Method</th>
                                 <th>Type</th>
                                 <th>Amount (₹)</th>
                                 <th>Timestamp</th>

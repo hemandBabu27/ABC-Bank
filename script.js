@@ -1,14 +1,14 @@
 /**
- * ABC Bank - Real-Life Core Engine
- * Manages Rupee Balances, Admin Account Creation, and AI Risk Telemetry
+ * ABC Bank - Core Banking Engine with ATM & Category Support
  */
 
-// Local Storage for Accounts & Ledger
+// Accounts Storage with Category Support
 let accounts = JSON.parse(localStorage.getItem('abc_accounts')) || [
     {
         accountNumber: '10011223344',
         pin: '1234',
         name: 'Demo Customer',
+        category: 'Common',
         email: 'customer@abcbank.com',
         balance: 25000.00,
         type: 'Savings Account'
@@ -30,12 +30,10 @@ let transactions = JSON.parse(localStorage.getItem('abc_transactions')) || [
 
 let currentUser = null;
 
-// Validate 11-digit account logic
 function isValid11DigitAccount(account) {
     return /^\d{11}$/.test(account);
 }
 
-// Toggle inputs for Admin vs Customer
 function toggleRoleFields() {
     const role = document.getElementById('loginRole').value;
     const accountLabel = document.getElementById('accountLabel');
@@ -60,7 +58,6 @@ document.getElementById('loginForm').addEventListener('submit', (e) => {
 
     loginAlert.style.display = 'none';
 
-    // Admin Authentication
     if (role === 'Admin') {
         if (inputAcc === 'AD2026' && inputPin === 'AD2026') {
             authenticateUser({ name: 'System Admin', account: 'AD2026', role: 'Admin' });
@@ -71,7 +68,6 @@ document.getElementById('loginForm').addEventListener('submit', (e) => {
         return;
     }
 
-    // Customer Authentication
     const foundAcc = accounts.find(a => a.accountNumber === inputAcc && a.pin === inputPin);
     if (foundAcc) {
         authenticateUser({ ...foundAcc, role: 'Customer' });
@@ -92,16 +88,19 @@ function authenticateUser(userObj) {
     document.getElementById('userRoleBadge').innerText = currentUser.role;
 
     const transferCard = document.getElementById('transferCard');
+    const atmCard = document.getElementById('atmCard');
     const adminPanelCard = document.getElementById('adminPanelCard');
     const customerAccountCard = document.getElementById('customerAccountCard');
 
     if (currentUser.role === 'Admin') {
-        transferCard.style.display = 'none'; // Admin cannot issue transactions
-        adminPanelCard.style.display = 'block'; // Show Account Creation form
+        transferCard.style.display = 'none';
+        atmCard.style.display = 'none';
+        adminPanelCard.style.display = 'block';
         customerAccountCard.style.display = 'none';
         updateAdminStats();
     } else {
         transferCard.style.display = 'block';
+        atmCard.style.display = 'block';
         adminPanelCard.style.display = 'none';
         customerAccountCard.style.display = 'block';
         updateCustomerUI();
@@ -113,6 +112,7 @@ function authenticateUser(userObj) {
 function updateCustomerUI() {
     const acc = accounts.find(a => a.accountNumber === currentUser.accountNumber) || currentUser;
     document.getElementById('displayAccNumber').innerText = acc.accountNumber;
+    document.getElementById('displayCategory').innerText = acc.category || 'Common';
     document.getElementById('displayAccType').innerText = acc.type;
     document.getElementById('displayAccBalance').innerText = `₹${acc.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
@@ -125,7 +125,7 @@ function logout() {
     document.getElementById('loginForm').reset();
 }
 
-// --- ADMIN CREATES ACCOUNT FOR USERS ---
+// --- ADMIN CREATES ACCOUNT (COMMON / BUSINESS CATEGORY SUPPORT) ---
 function generate11DigitAccountNumber() {
     let acc = '100';
     for (let i = 0; i < 8; i++) {
@@ -137,6 +137,7 @@ function generate11DigitAccountNumber() {
 document.getElementById('createAccountForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const name = document.getElementById('regName').value.trim();
+    const category = document.getElementById('regCategory').value;
     const email = document.getElementById('regEmail').value.trim();
     const type = document.getElementById('regType').value;
     const deposit = parseFloat(document.getElementById('regDeposit').value);
@@ -154,6 +155,7 @@ document.getElementById('createAccountForm').addEventListener('submit', (e) => {
         accountNumber: newAccNum,
         pin: pin,
         name: name,
+        category: category,
         email: email,
         balance: deposit,
         type: type
@@ -163,11 +165,12 @@ document.getElementById('createAccountForm').addEventListener('submit', (e) => {
     localStorage.setItem('abc_accounts', JSON.stringify(accounts));
 
     regNotice.innerHTML = `
-        <strong>New Customer Account Registered!</strong><br>
+        <strong>New ${category} Account Registered!</strong><br>
         • Account Number: <code>${newAccNum}</code><br>
-        • Customer Name: <strong>${name}</strong><br>
-        • Initial Deposit: <strong>₹${deposit.toLocaleString('en-IN')}</strong><br>
-        <small>Account details saved to central database.</small>
+        • Entity/Customer: <strong>${name}</strong><br>
+        • Category: <strong>${category}</strong><br>
+        • Opening Balance: <strong>₹${deposit.toLocaleString('en-IN')}</strong><br>
+        <small>Account registered into core database.</small>
     `;
     regNotice.style.display = 'block';
 
@@ -181,7 +184,7 @@ function updateAdminStats() {
     document.getElementById('statTotalVolume').innerText = `₹${totalVolume.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 }
 
-// --- AI FRAUD ENGINE ---
+// --- AI FRAUD SCORING ENGINE ---
 function analyzeFraudRisk(account, amount) {
     let score = 0;
     let flags = [];
@@ -194,7 +197,7 @@ function analyzeFraudRisk(account, amount) {
         flags.push("Elevated transaction amount (> ₹1,00,000)");
     }
 
-    if (account.endsWith("0000") || account.startsWith("99")) {
+    if (account && (account.endsWith("0000") || account.startsWith("99"))) {
         score += 30;
         flags.push("Suspicious target account routing profile");
     }
@@ -221,6 +224,50 @@ function analyzeFraudRisk(account, amount) {
     return { score, level, flags, color, badgeClass };
 }
 
+// --- ATM TERMINAL TRANSACTIONS (CARDLESS / ACCOUNT NO. FREE) ---
+document.getElementById('atmForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const action = document.getElementById('atmAction').value;
+    const amount = parseFloat(document.getElementById('atmAmount').value);
+
+    const customerAcc = accounts.find(a => a.accountNumber === currentUser.accountNumber);
+
+    if (action === 'Self Withdraw' && customerAcc.balance < amount) {
+        alert("Insufficient balance for ATM withdrawal.");
+        return;
+    }
+
+    const isDebit = (action === 'Self Withdraw');
+    if (isDebit) {
+        customerAcc.balance -= amount;
+    } else {
+        customerAcc.balance += amount;
+    }
+
+    localStorage.setItem('abc_accounts', JSON.stringify(accounts));
+    updateCustomerUI();
+
+    const analysis = analyzeFraudRisk(null, amount);
+
+    const newTxn = {
+        id: 'ATM-' + Math.floor(10000 + Math.random() * 90000),
+        account: `ATM Terminal (${action === 'Self Withdraw' ? 'Withdrawal' : 'Cash Deposit'})`,
+        type: isDebit ? 'Debit' : 'Credit',
+        amount: amount,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        score: analysis.score,
+        level: analysis.level,
+        badgeClass: analysis.badgeClass
+    };
+
+    transactions.unshift(newTxn);
+    localStorage.setItem('abc_transactions', JSON.stringify(transactions));
+    renderLedger();
+
+    alert(`ATM ${action} of ₹${amount.toLocaleString('en-IN')} successful!`);
+    document.getElementById('atmForm').reset();
+});
+
 // --- CUSTOMER TRANSFER MANAGEMENT ---
 const transferForm = document.getElementById('transferForm');
 const transAccountInput = document.getElementById('transAccount');
@@ -246,14 +293,12 @@ transferForm.addEventListener('submit', (e) => {
         return;
     }
 
-    // Check balance for debit transactions
     const customerAcc = accounts.find(a => a.accountNumber === currentUser.accountNumber);
     if (type === 'Debit' && customerAcc && customerAcc.balance < amount) {
         alert("Insufficient account balance to complete transfer.");
         return;
     }
 
-    // Calculate Fraud Assessment
     const analysis = analyzeFraudRisk(targetAcc, amount);
 
     const fraudAlert = document.getElementById('fraudAlert');
@@ -271,7 +316,6 @@ transferForm.addEventListener('submit', (e) => {
         fraudAlert.innerHTML = `<strong>Status [Safe]:</strong> Transaction fits customer's historical behavioral baseline.`;
     }
 
-    // Update Balance
     if (customerAcc) {
         if (type === 'Debit') {
             customerAcc.balance -= amount;
@@ -282,7 +326,6 @@ transferForm.addEventListener('submit', (e) => {
         updateCustomerUI();
     }
 
-    // Append to Transaction History
     const newTxn = {
         id: 'TXN-' + Math.floor(10000 + Math.random() * 90000),
         account: targetAcc,
