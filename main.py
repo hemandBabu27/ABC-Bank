@@ -32,6 +32,11 @@ class TransactionRequest(BaseModel):
     amount: float
     target_account: Optional[str] = None
 
+class TransferRequest(BaseModel):
+    sender_account_number: str
+    receiver_account_number: str
+    amount: float
+
 class AccountCreate(BaseModel):
     account_number: str
     initial_deposit: float
@@ -70,9 +75,40 @@ def get_account(account_number: str):
         raise HTTPException(status_code=404, detail="Account not found.")
     return account.data[0]
 
+@app.post("/api/transactions/transfer", summary="Transfer Between Accounts")
+def transfer(req: TransferRequest):
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero.")
+        
+    sender_res = supabase.table("account").select("*").eq("account_number", req.sender_account_number).execute()
+    receiver_res = supabase.table("account").select("*").eq("account_number", req.receiver_account_number).execute()
+    
+    if not sender_res.data or not receiver_res.data:
+        raise HTTPException(status_code=404, detail="Sender or receiver account not found.")
+        
+    sender = sender_res.data[0]
+    receiver = receiver_res.data[0]
+    
+    sender_balance = float(sender["balance"])
+    receiver_balance = float(receiver["balance"])
+    
+    if sender_balance < req.amount:
+        raise HTTPException(status_code=400, detail="Insufficient funds in sender account.")
+        
+    new_sender_balance = sender_balance - req.amount
+    new_receiver_balance = receiver_balance + req.amount
+    
+    supabase.table("account").update({"balance": new_sender_balance}).eq("account_number", req.sender_account_number).execute()
+    supabase.table("account").update({"balance": new_receiver_balance}).eq("account_number", req.receiver_account_number).execute()
+    
+    return {
+        "message": "Transfer successful", 
+        "sender_balance": new_sender_balance, 
+        "receiver_balance": new_receiver_balance
+    }
+
 @app.post("/api/transactions/analyze-fraud")
 def analyze_fraud(req: TransactionRequest):
-    # Use your loaded ML model or rule engine here
     risk_score = 12
     risk_level = "Low"
     
