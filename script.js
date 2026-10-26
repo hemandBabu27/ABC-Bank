@@ -3,7 +3,7 @@
  */
 
 // Accounts Storage with Category Support
-const API_BASE_URL = 'https://abc-bank-1.onrender.com/api';
+const API_BASE_URL = 'https://abc-bank-1.onrender.com';
 
 
 let accounts = JSON.parse(localStorage.getItem('abc_accounts')) || [
